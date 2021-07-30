@@ -34,13 +34,16 @@ void leftRotate(TreeNode * x);
 void rightRotate(TreeNode * x);
 void checkMax(long newValue);
 TreeNode * maximum(TreeNode * curr);
-void deleteMax(TreeNode * x);
+void delete(TreeNode * x);
+TreeNode * heirTo(TreeNode * x);
 
 int main(){
 
     int d, k, id = 0;
     char line[N];
     long ** currGraph;
+
+    TreeNode * debugRoot;   //TODO: to cancel before submission
 
     fp = fopen("open_tests\\input_1.txt", "r");
     //fp = stdin;
@@ -50,22 +53,20 @@ int main(){
     for(int i=0; i<d; i++){
         currGraph[i] = (long *) malloc(d * sizeof(long));
     }
-
     root = NULL;
 
     fgets(line, N, fp);
     while(!feof(fp)) {
         if(strcmp(line, "AggiungiGrafo\n") == 0){
             saveMatrix(currGraph, d);
-
             long sumMinDistances = dijkstraQueue(currGraph, d);
 
             //printf("Result: %ld\n", sumMinDistances);
+            //printf("Graph %d\n", id);
 
-            printf("Graph %d\n", id);
             addToStructure(id, sumMinDistances, id >= k);
+            debugRoot = root;
             id++;
-
         } else if(strcmp(line, "TopK\n") == 0){
             printTopK();
         }
@@ -76,11 +77,9 @@ int main(){
 }
 
 long dijkstraQueue(long ** currGraph, int d){
-    GraphNode * queue = NULL;
+    GraphNode * queue = initQueue(currGraph, d);
     int queueDim = d-1;
     long sum = 0;
-    queue = initQueue(currGraph, d);
-
     while(queueDim != 0){
         quicksort(queue, 0, queueDim-1);
         //printQueue(queue, d);
@@ -94,7 +93,6 @@ long dijkstraQueue(long ** currGraph, int d){
                 queue[i].distance = currGraph[u->key][queue[i].key] + u->distance;
         }
     }
-
     return sum;
 }
 
@@ -157,15 +155,14 @@ void switchNodes(GraphNode * queue, int i, int j) {
 }
 
 void addToStructure(int id, long load, int kReached){
-    /*if(kReached)
-        checkMax(load);*/
+    if(kReached)
+        checkMax(load);
     insert(id, load);
 }
 
 void insert(int id, long load){
     TreeNode * curr = root;
     TreeNode * prev = NULL;
-
     while(curr != NULL){
         prev = curr;
         if(id < curr->key)
@@ -173,12 +170,10 @@ void insert(int id, long load){
         else if(id >= curr->key)
             curr = curr->dx;
     }
-
     curr = (TreeNode *) malloc(sizeof(TreeNode));
     curr->color = 1;
     curr->key = id;
     curr->payload = load;
-
     if(prev == NULL){       //empty tree
         curr->dx = NULL;
         curr->sx = NULL;
@@ -197,38 +192,40 @@ void insert(int id, long load){
 
 void restoreRB(TreeNode * x){
     TreeNode * y;
-    while(x->p->color == 1){
-        if(x->p == x->p->p->sx && x->p->p->dx != NULL){
+    while(x != root && x->p->color == 1){
+        if(x->p == x->p->p->sx){
             y = x->p->p->dx;
-            if(y->color == 1){
+            if(y != NULL && y->color == 1){
                 x->p->color = 0;
                 y->color = 0;
                 x->p->p->color = 1;
                 x = x->p->p;
-            }else if(x == x->p->dx){
-                x = x->p;
-                leftRotate(x);
-            } else if(x == x->p->dx){
+            } else{
+                if(x == x->p->dx){
+                    x = x->p;
+                    leftRotate(x);
+                }
                 x->p->color = 0;
                 x->p->p->color = 1;
                 rightRotate(x->p->p);
             }
-        } else if(x->p->p->sx != NULL){
+        } else{
             y = x->p->p->sx;
-            if(y->color == 1){
+            if(y != NULL && y->color == 1){
                 x->p->color = 0;
                 y->color = 0;
                 x->p->p->color = 1;
                 x = x->p->p;
-            } else if(x == x->p->sx){
-                x = x->p;
-                rightRotate(x);
             } else{
+                if(x == x->p->sx){
+                    x = x->p;
+                    rightRotate(x);
+                }
                 x->p->color = 0;
                 x->p->p->color = 1;
                 leftRotate(x->p->p);
             }
-        } else  break;
+        }
     }
     while(root->p != NULL)
         root = root->p;
@@ -270,22 +267,39 @@ void rightRotate(TreeNode * x){	//fatta
 void checkMax(long newValue){
     TreeNode * last = maximum(root);
     if(newValue < last->payload)
-        deleteMax(last);
+        delete(last);
 }
 
-TreeNode * maximum(TreeNode * curr){		//fatta funziona bene
+TreeNode * maximum(TreeNode * curr){
     if(curr->dx != NULL)
         return maximum(curr->dx);
     return curr;
 }
 
-void deleteMax(TreeNode * x){
-    if(x == root)
-        free(root);
-    else if(x == x->p->dx)
-        free(x->p->dx);
-    else
-        free(x->p->sx);
+void delete(TreeNode * x){
+    TreeNode * toDelete, * subTree;
+    if(x->sx == NULL || x->dx == NULL)
+        toDelete = x;
+    else    toDelete = heirTo(x);
+    if(toDelete->sx != NULL)
+        subTree = toDelete->sx;
+    else    subTree = toDelete->dx;
+    if(subTree != NULL)
+        subTree->p = toDelete->p;
+    if(toDelete->p == NULL)
+        root = subTree;
+    else if(toDelete == toDelete->p->sx)
+        toDelete->p->sx = subTree;
+    else    toDelete->p->dx = subTree;
+    if(toDelete != x){
+        x->key = toDelete->key;
+        x->payload = toDelete->payload;
+    }
+    free(toDelete);
+}
+
+TreeNode * heirTo(TreeNode * x){
+
 }
 
 void printTopK(){
