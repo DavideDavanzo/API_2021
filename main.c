@@ -3,6 +3,8 @@
 #include<string.h>
 
 #define N 1024
+#define BLACK 0
+#define RED 1
 
 typedef struct {
     int key;
@@ -29,21 +31,23 @@ void switchNodes(GraphNode * queue, int i, int j);
 void printQueue(GraphNode * queue, int d);
 long dijkstraQueue(long ** currGraph, int d);
 void insert(int id, long load);
-void restoreRB(TreeNode * x);
+void restoreRBInsert(TreeNode * x);
+void restoreRBDelete(TreeNode * x);
 void leftRotate(TreeNode * x);
 void rightRotate(TreeNode * x);
-void checkMax(long newValue);
+int checkMax(long newValue);
 TreeNode * maximum(TreeNode * curr);
+TreeNode * minimum(TreeNode * curr);
 void delete(TreeNode * x);
 TreeNode * heirTo(TreeNode * x);
+void printValue(TreeNode * treeNode);
 
+//RBtree seems to work, dijkstraQueue() does not
 int main(){
 
     int d, k, id = 0;
     char line[N];
     long ** currGraph;
-
-    TreeNode * debugRoot;   //TODO: to cancel before submission
 
     fp = fopen("open_tests\\input_1.txt", "r");
     //fp = stdin;
@@ -55,17 +59,21 @@ int main(){
     }
     root = NULL;
 
+    TreeNode * debugRoot;   //TODO: to cancel before submission
+
     fgets(line, N, fp);
     while(!feof(fp)) {
         if(strcmp(line, "AggiungiGrafo\n") == 0){
             saveMatrix(currGraph, d);
             long sumMinDistances = dijkstraQueue(currGraph, d);
 
-            //printf("Result: %ld\n", sumMinDistances);
-            //printf("Graph %d\n", id);
+            printf("Graph %d\n", id);
+            printf("Result: %ld\n", sumMinDistances);
+            debugRoot = root;   //TODO: to cancel before submission
 
             addToStructure(id, sumMinDistances, id >= k);
-            debugRoot = root;
+
+            debugRoot = root;   //TODO: to cancel before submission
             id++;
         } else if(strcmp(line, "TopK\n") == 0){
             printTopK();
@@ -155,9 +163,10 @@ void switchNodes(GraphNode * queue, int i, int j) {
 }
 
 void addToStructure(int id, long load, int kReached){
-    if(kReached)
-        checkMax(load);
-    insert(id, load);
+    if(kReached){
+        if(checkMax(load))
+            insert(id, load);
+    } else  insert(id, load);
 }
 
 void insert(int id, long load){
@@ -165,81 +174,79 @@ void insert(int id, long load){
     TreeNode * prev = NULL;
     while(curr != NULL){
         prev = curr;
-        if(id < curr->key)
+        if(load < curr->payload)
             curr = curr->sx;
-        else if(id >= curr->key)
+        else if(load >= curr->payload)
             curr = curr->dx;
     }
-    curr = (TreeNode *) malloc(sizeof(TreeNode));
-    curr->color = 1;
+    curr = malloc(sizeof(TreeNode));
+    curr->color = RED;
     curr->key = id;
     curr->payload = load;
+    curr->dx = NULL;
+    curr->sx = NULL;
     if(prev == NULL){       //empty tree
-        curr->dx = NULL;
-        curr->sx = NULL;
         curr->p = NULL;
-        curr->color = 0;
+        curr->color = BLACK;
         root = curr;
     } else{
-        if(prev->key < id)
+        if(prev->payload < load)
             prev->dx = curr;
         else
             prev->sx = curr;
         curr->p = prev;
-        restoreRB(curr);
+        restoreRBInsert(curr);
     }
 }
 
-void restoreRB(TreeNode * x){
+void restoreRBInsert(TreeNode * x){
     TreeNode * y;
-    while(x != root && x->p->color == 1){
+    while(x != root && x->color == RED && x->p->color == RED){
         if(x->p == x->p->p->sx){
             y = x->p->p->dx;
-            if(y != NULL && y->color == 1){
-                x->p->color = 0;
-                y->color = 0;
-                x->p->p->color = 1;
+            if(y != NULL && y->color == RED){
+                x->p->color = BLACK;
+                y->color = BLACK;
+                x->p->p->color = RED;
                 x = x->p->p;
             } else{
                 if(x == x->p->dx){
                     x = x->p;
                     leftRotate(x);
                 }
-                x->p->color = 0;
-                x->p->p->color = 1;
+                x->p->color = BLACK;
+                x->p->p->color = RED;
                 rightRotate(x->p->p);
             }
         } else{
             y = x->p->p->sx;
-            if(y != NULL && y->color == 1){
-                x->p->color = 0;
-                y->color = 0;
-                x->p->p->color = 1;
+            if(y != NULL && y->color == RED){
+                x->p->color = BLACK;
+                y->color = BLACK;
+                x->p->p->color = RED;
                 x = x->p->p;
             } else{
                 if(x == x->p->sx){
                     x = x->p;
                     rightRotate(x);
                 }
-                x->p->color = 0;
-                x->p->p->color = 1;
+                x->p->color = BLACK;
+                x->p->p->color = RED;
                 leftRotate(x->p->p);
             }
         }
     }
-    while(root->p != NULL)
-        root = root->p;
-    root->color = 0;
+    root->color = BLACK;
 }
 
-void leftRotate(TreeNode * x){	//fatta
-    TreeNode * y = x->dx;					//y punta al figlio destro del nodo X
+void leftRotate(TreeNode * x){
+    TreeNode * y = x->dx;
     x->dx = y->sx;					//X punta dx al figlio sx di Y
     if(y->sx != NULL)
         y->sx->p = x;					//il figlio sx di Y riconosce X come nuovo padre
     y->p = x->p;						//Y sale di livello rconoscendo il padre di X come proprio
     if(x->p == NULL)
-        root=y;						//Nel caso Y diventa radice
+        root = y;						//Nel caso Y diventa radice
     else if(x == x->p->sx)				//se X è un figlio sx
         x->p->sx = y;					//Y prende il suo posto
     else
@@ -248,26 +255,29 @@ void leftRotate(TreeNode * x){	//fatta
     x->p = y;							//Y diventa padre di X
 }
 
-void rightRotate(TreeNode * x){	//fatta
+void rightRotate(TreeNode * x){
     TreeNode * y = x->sx;					//Y è figlio sx di X
     x->sx = y->dx;					//X punta sx al figlio dx di Y
-    if(y->sx != NULL)
+    if(y->dx != NULL)
         y->dx->p = x;					//il figlio dx di Y riconosce X come nuovo padre
     y->p = x->p;						//Y sale di livello rconoscendo il padre di X come proprio
     if(x->p == NULL)
         root = y;						//Nel caso Y diventa radice
-    else if(x == x->p->sx)				//se X è un figlio sx
-        x->p->sx = y;					//Y prende il suo posto
+    else if(x == x->p->dx)				//se X è un figlio sx
+        x->p->dx = y;					//Y prende il suo posto
     else
-        x->p->dx = y;					//analogamente se era figlio dx
+        x->p->sx = y;					//analogamente se era figlio dx
     y->dx = x;						//X scende di livello diventando figlio dx di Y
     x->p = y;							//Y diventa padre di X
 }
 
-void checkMax(long newValue){
+int checkMax(long newValue){
     TreeNode * last = maximum(root);
-    if(newValue < last->payload)
+    if(newValue < last->payload){
         delete(last);
+        return 1;
+    }
+    return 0;
 }
 
 TreeNode * maximum(TreeNode * curr){
@@ -295,15 +305,93 @@ void delete(TreeNode * x){
         x->key = toDelete->key;
         x->payload = toDelete->payload;
     }
-    free(toDelete);
+    if(toDelete->color == BLACK){
+        free(toDelete);
+        if(subTree != NULL)
+            restoreRBDelete(subTree);
+    } else free(toDelete);
+}
+
+void restoreRBDelete(TreeNode * x){
+    while(x != root && x->color == BLACK){
+        if(x == x->p->sx){
+            if(x->p->dx->color == RED){     //case 1
+                x->p->color = RED;
+                x->p->dx->color = BLACK;
+                leftRotate(x->p);
+            }
+            if(x->p->dx->sx->color == BLACK && x->p->dx->color == BLACK){
+                x->p->dx->color = RED;
+                x = x->p;
+            } else{
+                if(x->p->dx->dx->color == BLACK){      //case 4
+                    x->p->dx->color = RED;
+                    x->p->dx->sx->color = BLACK;
+                    rightRotate(x->p);
+                }
+                x->p->dx->color = x->p->color;
+                x->p->dx->dx->color = BLACK;
+                x->p->color = BLACK;
+                leftRotate(x->p);
+                x = root;
+            }
+        } else{
+            if(x->p->sx->color == RED){     //case 1
+                x->p->color = RED;
+                x->p->sx->color = BLACK;
+                rightRotate(x->p);
+            }
+            if(x->p->sx->color == BLACK &&x->p->sx->dx->color == BLACK){
+                x->p->sx->color = RED;
+                x = x->p;
+            } else{
+                if(x->p->sx->sx->color == BLACK){    //case 3 -> case 4
+                    x->p->sx->color = RED;
+                    x->p->sx->dx->color = BLACK;
+                    leftRotate(x->p->sx);
+                }
+                x->p->sx->color = x->p->color;
+                x->p->color = BLACK;
+                x->p->sx->sx->color = BLACK;
+                rightRotate(x->p);
+                x = root;
+            }
+        }
+    }
+    x->color = BLACK;
 }
 
 TreeNode * heirTo(TreeNode * x){
+    TreeNode * temp;
+    if(x->dx != NULL)
+        return minimum(x->dx);
+    temp = x->p;
+    while(temp != NULL && x == temp->dx){
+        x = temp;
+        temp = temp->p;
+    }
+    return temp;
+}
 
+TreeNode * minimum(TreeNode * curr){
+    if(curr->sx != NULL)
+        return minimum(curr->sx);
+    return curr;
 }
 
 void printTopK(){
-    printf("printTopK(): implementation needed");
+    printValue(root);
+}
+
+void printValue(TreeNode * treeNode){
+    if(treeNode == NULL)
+        return;
+    printValue(treeNode->sx);
+    if(treeNode == maximum(root))
+        printf("%d", treeNode->key);
+    else
+        printf("%d ", treeNode->key);
+    printValue(treeNode->dx);
 }
 
 void printQueue(GraphNode * queue, int d){
