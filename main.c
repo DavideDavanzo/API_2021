@@ -2,7 +2,7 @@
 #include<stdlib.h>
 #include<string.h>
 
-#define N 1024
+#define N 1000000
 #define BLACK 0
 #define RED 1
 
@@ -48,11 +48,13 @@ int main(){
     char * line, buffer[N];
     long ** currGraph;
 
-    //fp = fopen("open_tests\\input_1.txt", "r");
+    //fp = fopen("open_tests\\input_3.txt", "r");
     fp = stdin;
 
     line = fgets(buffer, N, fp);
     d = atoi(line);
+    while(*line != ' ')
+        line++;
     line++;
     k = atoi(line);
     currGraph = (long **) malloc(d * sizeof(long));
