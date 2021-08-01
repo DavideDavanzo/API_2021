@@ -42,45 +42,40 @@ void delete(TreeNode * x);
 TreeNode * heirTo(TreeNode * x);
 void printValue(TreeNode * treeNode);
 
-//RBtree seems to work, dijkstraQueue() does not
 int main(){
 
     int d, k, id = 0;
-    char line[N];
+    char * line, buffer[N];
     long ** currGraph;
 
-    fp = fopen("open_tests\\input_1.txt", "r");
-    //fp = stdin;
+    //fp = fopen("open_tests\\input_1.txt", "r");
+    fp = stdin;
 
-    fscanf(fp, "%d %d", &d, &k);
+    line = fgets(buffer, N, fp);
+    d = atoi(line);
+    line++;
+    k = atoi(line);
     currGraph = (long **) malloc(d * sizeof(long));
     for(int i=0; i<d; i++){
         currGraph[i] = (long *) malloc(d * sizeof(long));
     }
     root = NULL;
 
-    TreeNode * debugRoot;   //TODO: to cancel before submission
-
-    fgets(line, N, fp);
+    line = fgets(buffer, N, fp);
     while(!feof(fp)) {
         if(strcmp(line, "AggiungiGrafo\n") == 0){
             saveMatrix(currGraph, d);
             long sumMinDistances = dijkstraQueue(currGraph, d);
-
-            printf("Graph %d\n", id);
-            printf("Result: %ld\n", sumMinDistances);
-            debugRoot = root;   //TODO: to cancel before submission
-
             addToStructure(id, sumMinDistances, id >= k);
-
-            debugRoot = root;   //TODO: to cancel before submission
             id++;
+            line = fgets(line, N, fp);
         } else if(strcmp(line, "TopK\n") == 0){
             printTopK();
+            line = fgets(line, N, fp);
+            if(!feof(fp))
+                printf("\n");
         }
-        fgets(line, N, fp);
     }
-
     return 0;
 }
 
@@ -90,14 +85,13 @@ long dijkstraQueue(long ** currGraph, int d){
     long sum = 0;
     while(queueDim != 0){
         quicksort(queue, 0, queueDim-1);
-        //printQueue(queue, d);
         sum += queue->distance;
         GraphNode * u = queue;
         queue++;
         queueDim--;
         //for each v in u* check min(v.distance, u.distance+weight(u->v))
         for(int i=0; i<queueDim; i++){
-            if(currGraph[u->key][queue[i].key] != 0 && currGraph[u->key][queue[i].key]+u->distance < queue[i].distance)
+            if(currGraph[u->key][queue[i].key] != 0 && (currGraph[u->key][queue[i].key]+u->distance < queue[i].distance || queue[i].distance == 0))
                 queue[i].distance = currGraph[u->key][queue[i].key] + u->distance;
         }
     }
@@ -105,11 +99,15 @@ long dijkstraQueue(long ** currGraph, int d){
 }
 
 void saveMatrix(long ** currGraph, int d){
+    char * ptr;
+    char * line, buffer[N];
     for(int i=0; i<d; i++){
-        int j = 0;
-        do{
-            fscanf(fp, "%ld", &currGraph[i][j++]);
-        } while((char) fgetc(fp) != '\n');
+        line = fgets(buffer, N, fp);
+        for(int j=0; j<d; j++){
+            currGraph[i][j] = strtol(line, &ptr, 10);
+            line = ptr;
+            line = &line[1];
+        }
     }
 }
 
@@ -141,7 +139,7 @@ int partition(GraphNode *queue, int lo, int hi) {
     pivot = queue[hi].distance;
     int i = lo - 1;
     for (int j=lo; j<hi; j++) {
-        if (queue[j].distance <= pivot & queue[j].distance != 0) {
+        if (queue[j].distance <= pivot && queue[j].distance != 0) {
             i++;
             if (i != j)
                 switchNodes(queue, i, j);
@@ -394,8 +392,8 @@ void printValue(TreeNode * treeNode){
     printValue(treeNode->dx);
 }
 
-void printQueue(GraphNode * queue, int d){
-    for(int i=0; i<d-1; i++){
+void printQueue(GraphNode * queue, int dim){
+    for(int i=0; i<dim; i++){
         printf("%d:%ld\n", queue[i].key, queue[i].distance);
     }
 }
