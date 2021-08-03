@@ -22,7 +22,6 @@ FILE * fp;
 TreeNode * root;
 TreeNode * max;
 
-char * getLine();
 void printTopK();
 void saveMatrix(unsigned long ** currGraph, int d);
 GraphNode * initQueue(unsigned long ** currGraph, int d);
@@ -43,35 +42,35 @@ TreeNode * minimum(TreeNode * curr);
 void delete(TreeNode * x);
 TreeNode * heirTo(TreeNode * x);
 void printValue(TreeNode * treeNode);
-int myAtoi(char * string);
-unsigned long myStrtol(char * string);
+int myAtoi();
+unsigned long myStrtol();
 
 int main(){
 
     int d, k, id = 0;
-    char * line, buffer[N];
     unsigned long ** currGraph;
 
-    fp = fopen("open_tests\\input_1.txt", "r");
-    //fp = stdin;
+    //fp = fopen("open_tests\\input_1.txt", "r");
+    fp = stdin;
 
-    line = fgets(buffer, N, fp);
+    //line = fgets(buffer, N, fp);
 
-    d = myAtoi(line);
-    while(*line != ' ')
-        line++;
-    line++;
-    k = myAtoi(line);
+    d = myAtoi();
+    k = myAtoi();
     currGraph = (unsigned long **) malloc(d * sizeof(unsigned long));
     for(int i=0; i<d; i++){
         currGraph[i] = (unsigned long *) malloc(d * sizeof(unsigned long));
     }
     root = NULL;
 
-    line = fgets(buffer, N, fp);
+    //line = fgets(buffer, N, fp);
 
+    char c = getc_unlocked(fp);
     while(!feof(fp)) {
-        if(strcmp(line, "AggiungiGrafo\n") == 0){
+        if(c == 'A'){
+            while(c != '\n'){
+                c = getc_unlocked(fp);
+            }
             saveMatrix(currGraph, d);
             unsigned long sumMinDistances = dijkstraQueue(currGraph, d);
 
@@ -79,23 +78,35 @@ int main(){
 
             addToStructure(id, sumMinDistances, id >= k);
             id++;
-            line = fgets(line, N, fp);
-        } else if(strcmp(line, "TopK\n") == 0){
+            c = getc_unlocked(fp);
+        } else if(c == 'T'){
+            while(c != '\n'){
+                c = getc_unlocked(fp);
+            }
             printTopK();
-            line = fgets(line, N, fp);
+            c = getc_unlocked(fp);
             printf("\n");
         }
     }
     return 0;
 }
 
-char * getLine(char * buffer){
-    int i=0;
-    do{
-        buffer[i] = (char) getc_unlocked(fp);
-        i++;
-    }while(buffer[i-1] != '\n');
-    return buffer;
+int myAtoi(){
+    int res = 0;
+    char c;
+    while(((c = getc_unlocked(fp)) >= '0') && (c <= '9')){
+        res = 10 * res + (c - '0');
+    }
+    return res;
+}
+
+unsigned long myStrtol(){
+    unsigned long res = 0;
+    char c;
+    while(((c = getc_unlocked(fp)) >= '0') && (c <= '9')){
+        res = 10 * res + (c - '0');
+    }
+    return res;
 }
 
 unsigned long dijkstraQueue(unsigned long ** currGraph, int d){
@@ -122,14 +133,9 @@ unsigned long dijkstraQueue(unsigned long ** currGraph, int d){
 }
 
 void saveMatrix(unsigned long ** currGraph, int d){
-    char * line, buffer[N];
     for(int i=0; i<d; i++){
-        line = fgets(buffer, N, fp);
         for(int j=0; j<d; j++){
-            currGraph[i][j] = myStrtol(line);
-            while(*line != ',' && *line != '\n')
-                line++;
-            line++;
+            currGraph[i][j] = myStrtol();
         }
     }
 }
@@ -398,22 +404,6 @@ TreeNode * minimum(TreeNode * curr){
     if(curr->sx != NULL)
         return minimum(curr->sx);
     return curr;
-}
-
-int myAtoi(char * string){
-    int res = 0;
-    for (int i=0; (string[i]>='0') && (string[i]<='9'); i++){
-        res = 10 * res + (string[i] - '0');
-    }
-    return res;
-}
-
-unsigned long myStrtol(char * string){
-    unsigned long res = 0;
-    for (int i=0; (string[i]>='0') && (string[i]<='9'); i++){
-        res = 10 * res + (string[i] - '0');
-    }
-    return res;
 }
 
 void printTopK(){
