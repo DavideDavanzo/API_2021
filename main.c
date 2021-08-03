@@ -2,89 +2,107 @@
 #include<stdlib.h>
 #include<string.h>
 
-#define N 1000000
+#define N 600000
 #define BLACK 0
 #define RED 1
 
 typedef struct {
-    int key;
-    long distance;
+    unsigned int key;
+    unsigned long distance;
 }GraphNode;
 
 typedef struct Nd{
-    int key;
+    unsigned int key;
     int color;
-    long payload;
+    unsigned long payload;
     struct Nd *sx, *dx, *p;
 }TreeNode;
 
 FILE * fp;
 TreeNode * root;
+TreeNode * max;
 
+char * getLine();
 void printTopK();
-void saveMatrix(long ** currGraph, int d);
-GraphNode * initQueue(long ** currGraph, int d);
-void addToStructure(int id, long load, int kReached);   //kReached represents if TopK is full already or not yet. If it is, priority must be checked.
+void saveMatrix(unsigned long ** currGraph, int d);
+GraphNode * initQueue(unsigned long ** currGraph, int d);
+void addToStructure(int id, unsigned long load, int kReached);   //kReached represents if TopK is full already or not yet. If it is, priority must be checked.
 void quicksort(GraphNode * queue, int lo, int hi);
 int partition(GraphNode * queue, int lo, int hi);
 void switchNodes(GraphNode * queue, int i, int j);
 void printQueue(GraphNode * queue, int d);
-long dijkstraQueue(long ** currGraph, int d);
-void insert(int id, long load);
+unsigned long dijkstraQueue(unsigned long ** currGraph, int d);
+void insert(int id, unsigned long load);
 void restoreRBInsert(TreeNode * x);
 void restoreRBDelete(TreeNode * x);
 void leftRotate(TreeNode * x);
 void rightRotate(TreeNode * x);
-int checkMax(long newValue);
+int checkMax(unsigned long newValue);
 TreeNode * maximum(TreeNode * curr);
 TreeNode * minimum(TreeNode * curr);
 void delete(TreeNode * x);
 TreeNode * heirTo(TreeNode * x);
 void printValue(TreeNode * treeNode);
+int myAtoi(char * string);
+unsigned long myStrtol(char * string);
 
 int main(){
 
     int d, k, id = 0;
     char * line, buffer[N];
-    long ** currGraph;
+    unsigned long ** currGraph;
 
-    //fp = fopen("open_tests\\input_3.txt", "r");
-    fp = stdin;
+    fp = fopen("open_tests\\input_1.txt", "r");
+    //fp = stdin;
 
     line = fgets(buffer, N, fp);
-    d = atoi(line);
+
+    d = myAtoi(line);
     while(*line != ' ')
         line++;
     line++;
-    k = atoi(line);
-    currGraph = (long **) malloc(d * sizeof(long));
+    k = myAtoi(line);
+    currGraph = (unsigned long **) malloc(d * sizeof(unsigned long));
     for(int i=0; i<d; i++){
-        currGraph[i] = (long *) malloc(d * sizeof(long));
+        currGraph[i] = (unsigned long *) malloc(d * sizeof(unsigned long));
     }
     root = NULL;
 
     line = fgets(buffer, N, fp);
+
     while(!feof(fp)) {
         if(strcmp(line, "AggiungiGrafo\n") == 0){
             saveMatrix(currGraph, d);
-            long sumMinDistances = dijkstraQueue(currGraph, d);
+            unsigned long sumMinDistances = dijkstraQueue(currGraph, d);
+
+            //printf("%d: %lu\n", id, sumMinDistances);
+
             addToStructure(id, sumMinDistances, id >= k);
             id++;
             line = fgets(line, N, fp);
         } else if(strcmp(line, "TopK\n") == 0){
             printTopK();
             line = fgets(line, N, fp);
-            if(!feof(fp))
-                printf("\n");
+            printf("\n");
         }
     }
     return 0;
 }
 
-long dijkstraQueue(long ** currGraph, int d){
+char * getLine(char * buffer){
+    int i=0;
+    do{
+        buffer[i] = (char) getc_unlocked(fp);
+        i++;
+    }while(buffer[i-1] != '\n');
+    return buffer;
+}
+
+unsigned long dijkstraQueue(unsigned long ** currGraph, int d){
     GraphNode * queue = initQueue(currGraph, d);
+    GraphNode * temp = queue;
     int queueDim = d-1;
-    long sum = 0;
+    unsigned long sum = 0;
     while(queueDim != 0){
         quicksort(queue, 0, queueDim-1);
         sum += queue->distance;
@@ -92,36 +110,35 @@ long dijkstraQueue(long ** currGraph, int d){
         queue++;
         queueDim--;
         //for each v in u* check min(v.distance, u.distance+weight(u->v))
-        for(int i=0; i<queueDim; i++){
-            if(currGraph[u->key][queue[i].key] != 0 && (currGraph[u->key][queue[i].key]+u->distance < queue[i].distance || queue[i].distance == 0))
-                queue[i].distance = currGraph[u->key][queue[i].key] + u->distance;
+        if(u->distance != 0){
+            for(int i=0; i<queueDim; i++){
+                if(currGraph[u->key][queue[i].key] != 0 && (currGraph[u->key][queue[i].key]+u->distance < queue[i].distance || queue[i].distance == 0))
+                    queue[i].distance = currGraph[u->key][queue[i].key] + u->distance;
+            }
         }
     }
+    free(temp);
     return sum;
 }
 
-void saveMatrix(long ** currGraph, int d){
-    char * ptr;
+void saveMatrix(unsigned long ** currGraph, int d){
     char * line, buffer[N];
     for(int i=0; i<d; i++){
         line = fgets(buffer, N, fp);
         for(int j=0; j<d; j++){
-            currGraph[i][j] = strtol(line, &ptr, 10);
-            line = ptr;
-            line = &line[1];
+            currGraph[i][j] = myStrtol(line);
+            while(*line != ',' && *line != '\n')
+                line++;
+            line++;
         }
     }
 }
 
-GraphNode * initQueue(long ** currGraph, int d){
+GraphNode * initQueue(unsigned long ** currGraph, int d){
     GraphNode * queue = malloc((d-1) * sizeof(GraphNode));
     for(int i=1; i<d; i++){
         queue[i-1].key = i;
-        if(currGraph[0][i] == 0){
-            queue[i-1].distance = (long) NULL;
-        } else{
-            queue[i-1].distance = (long) currGraph[0][i];
-        }
+        queue[i-1].distance = (unsigned long) currGraph[0][i];
     }
     return queue;
 }
@@ -137,7 +154,7 @@ void quicksort(GraphNode * queue, int lo, int hi) {
 }
 
 int partition(GraphNode *queue, int lo, int hi) {
-    long pivot;
+    unsigned long pivot;
     pivot = queue[hi].distance;
     int i = lo - 1;
     for (int j=lo; j<hi; j++) {
@@ -154,7 +171,7 @@ int partition(GraphNode *queue, int lo, int hi) {
 void switchNodes(GraphNode * queue, int i, int j) {
     if(i != j){
         int tempKey = queue[j].key;
-        long tempDis = queue[j].distance;
+        unsigned long tempDis = queue[j].distance;
         queue[j].key = queue[i].key;
         queue[j].distance = queue[i].distance;
         queue[i].key = tempKey;
@@ -162,14 +179,19 @@ void switchNodes(GraphNode * queue, int i, int j) {
     }
 }
 
-void addToStructure(int id, long load, int kReached){
+void addToStructure(int id, unsigned long load, int kReached){
     if(kReached){
-        if(checkMax(load))
+        if(checkMax(load)){
             insert(id, load);
-    } else  insert(id, load);
+            max = maximum(root);
+        }
+    } else{
+        insert(id, load);
+        max = maximum(root);
+    }
 }
 
-void insert(int id, long load){
+void insert(int id, unsigned long load){
     TreeNode * curr = root;
     TreeNode * prev = NULL;
     while(curr != NULL){
@@ -179,7 +201,7 @@ void insert(int id, long load){
         else if(load >= curr->payload)
             curr = curr->dx;
     }
-    curr = malloc(sizeof(TreeNode));
+    curr = (TreeNode *) malloc(sizeof(TreeNode));
     curr->color = RED;
     curr->key = id;
     curr->payload = load;
@@ -190,7 +212,7 @@ void insert(int id, long load){
         curr->color = BLACK;
         root = curr;
     } else{
-        if(prev->payload < load)
+        if(prev->payload <= load)
             prev->dx = curr;
         else
             prev->sx = curr;
@@ -271,10 +293,9 @@ void rightRotate(TreeNode * x){
     x->p = y;							//Y diventa padre di X
 }
 
-int checkMax(long newValue){
-    TreeNode * last = maximum(root);
-    if(newValue < last->payload){
-        delete(last);
+int checkMax(unsigned long newValue){
+    if(newValue < max->payload){
+        delete(max);
         return 1;
     }
     return 0;
@@ -379,6 +400,22 @@ TreeNode * minimum(TreeNode * curr){
     return curr;
 }
 
+int myAtoi(char * string){
+    int res = 0;
+    for (int i=0; (string[i]>='0') && (string[i]<='9'); i++){
+        res = 10 * res + (string[i] - '0');
+    }
+    return res;
+}
+
+unsigned long myStrtol(char * string){
+    unsigned long res = 0;
+    for (int i=0; (string[i]>='0') && (string[i]<='9'); i++){
+        res = 10 * res + (string[i] - '0');
+    }
+    return res;
+}
+
 void printTopK(){
     printValue(root);
 }
@@ -387,7 +424,7 @@ void printValue(TreeNode * treeNode){
     if(treeNode == NULL)
         return;
     printValue(treeNode->sx);
-    if(treeNode == maximum(root))
+    if(treeNode == max)
         printf("%d", treeNode->key);
     else
         printf("%d ", treeNode->key);
@@ -396,6 +433,6 @@ void printValue(TreeNode * treeNode){
 
 void printQueue(GraphNode * queue, int dim){
     for(int i=0; i<dim; i++){
-        printf("%d:%ld\n", queue[i].key, queue[i].distance);
+        printf("%d:%lu\n", queue[i].key, queue[i].distance);
     }
 }
