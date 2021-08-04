@@ -2,17 +2,16 @@
 #include<stdlib.h>
 #include<string.h>
 
-#define N 600000
 #define BLACK 0
 #define RED 1
 
 typedef struct {
-    unsigned int key;
+    int key;
     unsigned long distance;
 }GraphNode;
 
 typedef struct Nd{
-    unsigned int key;
+    int key;
     int color;
     unsigned long payload;
     struct Nd *sx, *dx, *p;
@@ -44,6 +43,7 @@ TreeNode * heirTo(TreeNode * x);
 void printValue(TreeNode * treeNode);
 int myAtoi();
 unsigned long myStrtol();
+void minFirst(GraphNode * queue, int dim);
 
 int main(){
 
@@ -73,9 +73,6 @@ int main(){
             }
             saveMatrix(currGraph, d);
             unsigned long sumMinDistances = dijkstraQueue(currGraph, d);
-
-            //printf("%d: %lu\n", id, sumMinDistances);
-
             addToStructure(id, sumMinDistances, id >= k);
             id++;
             c = getc_unlocked(fp);
@@ -94,7 +91,7 @@ int main(){
 int myAtoi(){
     int res = 0;
     char c;
-    while(((c = getc_unlocked(fp)) >= '0') && (c <= '9')){
+    while((c = getc_unlocked(fp)) != ' ' && c != '\n'){
         res = 10 * res + (c - '0');
     }
     return res;
@@ -103,7 +100,7 @@ int myAtoi(){
 unsigned long myStrtol(){
     unsigned long res = 0;
     char c;
-    while(((c = getc_unlocked(fp)) >= '0') && (c <= '9')){
+    while((c = getc_unlocked(fp)) != ',' && c != '\n'){
         res = 10 * res + (c - '0');
     }
     return res;
@@ -115,21 +112,36 @@ unsigned long dijkstraQueue(unsigned long ** currGraph, int d){
     int queueDim = d-1;
     unsigned long sum = 0;
     while(queueDim != 0){
-        quicksort(queue, 0, queueDim-1);
+        minFirst(queue, queueDim);
         sum += queue->distance;
         GraphNode * u = queue;
         queue++;
         queueDim--;
-        //for each v in u* check min(v.distance, u.distance+weight(u->v))
         if(u->distance != 0){
             for(int i=0; i<queueDim; i++){
                 if(currGraph[u->key][queue[i].key] != 0 && (currGraph[u->key][queue[i].key]+u->distance < queue[i].distance || queue[i].distance == 0))
                     queue[i].distance = currGraph[u->key][queue[i].key] + u->distance;
             }
-        }
+        } else break;
     }
     free(temp);
     return sum;
+}
+
+void minFirst(GraphNode * queue, int dim){
+    GraphNode * min = queue;
+    for(int i=1; i<dim; i++){
+        if((queue[i].distance < min->distance || min->distance == 0) && queue[i].distance != 0)
+            min = &queue[i];
+    }
+    if(min->distance != 0 && min != &queue[0]){
+        int minKey = min->key;
+        unsigned long minDis = min->distance;
+        min->key = queue[0].key;
+        min->distance = queue[0].distance;
+        queue[0].key = minKey;
+        queue[0].distance = minDis;
+    }
 }
 
 void saveMatrix(unsigned long ** currGraph, int d){
@@ -147,42 +159,6 @@ GraphNode * initQueue(unsigned long ** currGraph, int d){
         queue[i-1].distance = (unsigned long) currGraph[0][i];
     }
     return queue;
-}
-
-void quicksort(GraphNode * queue, int lo, int hi) {
-    while(queue[hi].distance == 0)
-        hi--;
-    if (lo < hi) {
-        int pivot = partition(queue, lo, hi);
-        quicksort(queue, lo, pivot-1);
-        quicksort(queue, pivot+1, hi);
-    }
-}
-
-int partition(GraphNode *queue, int lo, int hi) {
-    unsigned long pivot;
-    pivot = queue[hi].distance;
-    int i = lo - 1;
-    for (int j=lo; j<hi; j++) {
-        if (queue[j].distance <= pivot && queue[j].distance != 0) {
-            i++;
-            if (i != j)
-                switchNodes(queue, i, j);
-        }
-    }
-    switchNodes(queue, i+1, hi);
-    return i + 1;
-}
-
-void switchNodes(GraphNode * queue, int i, int j) {
-    if(i != j){
-        int tempKey = queue[j].key;
-        unsigned long tempDis = queue[j].distance;
-        queue[j].key = queue[i].key;
-        queue[j].distance = queue[i].distance;
-        queue[i].key = tempKey;
-        queue[i].distance = tempDis;
-    }
 }
 
 void addToStructure(int id, unsigned long load, int kReached){
@@ -419,10 +395,4 @@ void printValue(TreeNode * treeNode){
     else
         printf("%d ", treeNode->key);
     printValue(treeNode->dx);
-}
-
-void printQueue(GraphNode * queue, int dim){
-    for(int i=0; i<dim; i++){
-        printf("%d:%lu\n", queue[i].key, queue[i].distance);
-    }
 }
