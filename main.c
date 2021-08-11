@@ -1,6 +1,5 @@
 #include<stdio.h>
 #include<stdlib.h>
-#include<string.h>
 
 #define BLACK 0
 #define RED 1
@@ -23,13 +22,9 @@ TreeNode * max;
 
 void printTopK();
 void saveMatrix(unsigned long ** currGraph, int d);
-GraphNode * initQueue(unsigned long ** currGraph, int d);
-void addToStructure(int id, unsigned long load, int kReached);   //kReached represents if TopK is full already or not yet. If it is, priority must be checked.
-void quicksort(GraphNode * queue, int lo, int hi);
-int partition(GraphNode * queue, int lo, int hi);
-void switchNodes(GraphNode * queue, int i, int j);
-void printQueue(GraphNode * queue, int d);
-unsigned long dijkstraQueue(unsigned long ** currGraph, int d);
+GraphNode * initQueue(unsigned long ** currGraph, int d, GraphNode * queue);
+void addToStructure(int id, unsigned long load, int k);
+unsigned long dijkstraQueue(unsigned long ** currGraph, int d, GraphNode * queue);
 void insert(int id, unsigned long load);
 void restoreRBInsert(TreeNode * x);
 void restoreRBDelete(TreeNode * x);
@@ -39,21 +34,17 @@ int checkMax(unsigned long newValue);
 TreeNode * maximum(TreeNode * curr);
 TreeNode * minimum(TreeNode * curr);
 void delete(TreeNode * x);
-TreeNode * heirTo(TreeNode * x);
+TreeNode * nextTo(TreeNode * x);
 void printValue(TreeNode * treeNode);
 int myAtoi();
 unsigned long myStrtol();
 void minFirst(GraphNode * queue, int dim);
 
 int main(){
-
     int d, k, id = 0;
     unsigned long ** currGraph;
-
     //fp = fopen("open_tests\\input_1.txt", "r");
     fp = stdin;
-
-    //line = fgets(buffer, N, fp);
 
     d = myAtoi();
     k = myAtoi();
@@ -62,9 +53,7 @@ int main(){
         currGraph[i] = (unsigned long *) malloc(d * sizeof(unsigned long));
     }
     root = NULL;
-
-    //line = fgets(buffer, N, fp);
-
+    GraphNode * queue = malloc((d-1) * sizeof(GraphNode));
     char c = getc_unlocked(fp);
     while(!feof(fp)) {
         if(c == 'A'){
@@ -72,18 +61,17 @@ int main(){
                 c = getc_unlocked(fp);
             }
             saveMatrix(currGraph, d);
-            unsigned long sumMinDistances = dijkstraQueue(currGraph, d);
-            addToStructure(id, sumMinDistances, id >= k);
+            unsigned long sumMinDistances = dijkstraQueue(currGraph, d, queue);
+            addToStructure(id, sumMinDistances, k);
             id++;
-            c = getc_unlocked(fp);
         } else if(c == 'T'){
             while(c != '\n'){
                 c = getc_unlocked(fp);
             }
             printTopK();
-            c = getc_unlocked(fp);
             printf("\n");
         }
+        c = getc_unlocked(fp);
     }
     return 0;
 }
@@ -106,25 +94,23 @@ unsigned long myStrtol(){
     return res;
 }
 
-unsigned long dijkstraQueue(unsigned long ** currGraph, int d){
-    GraphNode * queue = initQueue(currGraph, d);
-    GraphNode * temp = queue;
+unsigned long dijkstraQueue(unsigned long ** currGraph, int d, GraphNode * queue){
+    initQueue(currGraph, d, queue);
     int queueDim = d-1;
     unsigned long sum = 0;
     while(queueDim != 0){
         minFirst(queue, queueDim);
         sum += queue->distance;
         GraphNode * u = queue;
-        queue++;
-        queueDim--;
         if(u->distance != 0){
+            queue++;
+            queueDim--;
             for(int i=0; i<queueDim; i++){
                 if(currGraph[u->key][queue[i].key] != 0 && (currGraph[u->key][queue[i].key]+u->distance < queue[i].distance || queue[i].distance == 0))
                     queue[i].distance = currGraph[u->key][queue[i].key] + u->distance;
             }
         } else break;
     }
-    free(temp);
     return sum;
 }
 
@@ -152,8 +138,7 @@ void saveMatrix(unsigned long ** currGraph, int d){
     }
 }
 
-GraphNode * initQueue(unsigned long ** currGraph, int d){
-    GraphNode * queue = malloc((d-1) * sizeof(GraphNode));
+GraphNode * initQueue(unsigned long ** currGraph, int d, GraphNode * queue){
     for(int i=1; i<d; i++){
         queue[i-1].key = i;
         queue[i-1].distance = (unsigned long) currGraph[0][i];
@@ -161,15 +146,13 @@ GraphNode * initQueue(unsigned long ** currGraph, int d){
     return queue;
 }
 
-void addToStructure(int id, unsigned long load, int kReached){
-    if(kReached){
+void addToStructure(int id, unsigned long load, int k){
+    if(id >= k){
         if(checkMax(load)){
             insert(id, load);
-            max = maximum(root);
         }
     } else{
         insert(id, load);
-        max = maximum(root);
     }
 }
 
@@ -189,10 +172,11 @@ void insert(int id, unsigned long load){
     curr->payload = load;
     curr->dx = NULL;
     curr->sx = NULL;
-    if(prev == NULL){       //empty tree
+    if(prev == NULL){
         curr->p = NULL;
         curr->color = BLACK;
         root = curr;
+        max = root;
     } else{
         if(prev->payload <= load)
             prev->dx = curr;
@@ -200,6 +184,8 @@ void insert(int id, unsigned long load){
             prev->sx = curr;
         curr->p = prev;
         restoreRBInsert(curr);
+        if(load >= max->payload)
+            max = curr;
     }
 }
 
@@ -245,34 +231,34 @@ void restoreRBInsert(TreeNode * x){
 
 void leftRotate(TreeNode * x){
     TreeNode * y = x->dx;
-    x->dx = y->sx;					//X punta dx al figlio sx di Y
+    x->dx = y->sx;
     if(y->sx != NULL)
-        y->sx->p = x;					//il figlio sx di Y riconosce X come nuovo padre
-    y->p = x->p;						//Y sale di livello rconoscendo il padre di X come proprio
+        y->sx->p = x;
+    y->p = x->p;
     if(x->p == NULL)
-        root = y;						//Nel caso Y diventa radice
-    else if(x == x->p->sx)				//se X è un figlio sx
-        x->p->sx = y;					//Y prende il suo posto
+        root = y;
+    else if(x == x->p->sx)
+        x->p->sx = y;
     else
-        x->p->dx = y;					//analogamente se era figlio dx
-    y->sx = x;						//X scende di livello diventando figlio sx di Y
-    x->p = y;							//Y diventa padre di X
+        x->p->dx = y;
+    y->sx = x;
+    x->p = y;
 }
 
 void rightRotate(TreeNode * x){
-    TreeNode * y = x->sx;					//Y è figlio sx di X
-    x->sx = y->dx;					//X punta sx al figlio dx di Y
+    TreeNode * y = x->sx;
+    x->sx = y->dx;
     if(y->dx != NULL)
-        y->dx->p = x;					//il figlio dx di Y riconosce X come nuovo padre
-    y->p = x->p;						//Y sale di livello rconoscendo il padre di X come proprio
+        y->dx->p = x;
+    y->p = x->p;
     if(x->p == NULL)
-        root = y;						//Nel caso Y diventa radice
-    else if(x == x->p->dx)				//se X è un figlio sx
-        x->p->dx = y;					//Y prende il suo posto
+        root = y;
+    else if(x == x->p->dx)
+        x->p->dx = y;
     else
-        x->p->sx = y;					//analogamente se era figlio dx
-    y->dx = x;						//X scende di livello diventando figlio dx di Y
-    x->p = y;							//Y diventa padre di X
+        x->p->sx = y;
+    y->dx = x;
+    x->p = y;
 }
 
 int checkMax(unsigned long newValue){
@@ -291,9 +277,16 @@ TreeNode * maximum(TreeNode * curr){
 
 void delete(TreeNode * x){
     TreeNode * toDelete, * subTree;
+
+    //max handling
+    if(x->sx == NULL)
+        max = x->p;
+    else max = maximum(x->sx);
+
+    //actual delete
     if(x->sx == NULL || x->dx == NULL)
         toDelete = x;
-    else    toDelete = heirTo(x);
+    else    toDelete = nextTo(x);
     if(toDelete->sx != NULL)
         subTree = toDelete->sx;
     else    subTree = toDelete->dx;
@@ -364,7 +357,7 @@ void restoreRBDelete(TreeNode * x){
     x->color = BLACK;
 }
 
-TreeNode * heirTo(TreeNode * x){
+TreeNode * nextTo(TreeNode * x){
     TreeNode * temp;
     if(x->dx != NULL)
         return minimum(x->dx);
