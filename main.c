@@ -43,7 +43,7 @@ void minFirst(GraphNode * queue, int dim);
 int main(){
     int d, k, id = 0;
     unsigned long ** currGraph;
-    //fp = fopen("open_tests\\input_1.txt", "r");
+
     fp = stdin;
 
     d = myAtoi();
